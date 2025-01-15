@@ -1,6 +1,7 @@
 import socket
 import struct
 import select
+
 MAGIC_COOKIE = 0xabcddcba
 MESSAGE_TYPE_OFFER = 0x2
 PACKET_SIZE = 1024
@@ -25,3 +26,19 @@ def handle_tcp_connection(server_ip, tcp_port):
     tcp_socket.sendall(b"Test Message")
     tcp_socket.close()
     print("Connection closed")
+
+
+def handle_udp_connection(server_ip, udp_port):
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    request_message = struct.pack('!IBQ', MAGIC_COOKIE, MESSAGE_TYPE_OFFER, 1024)
+    udp_socket.sendto(request_message, (server_ip, udp_port))
+
+    received_data = 0
+    try:
+        while received_data < 1024:
+            data, _ = udp_socket.recvfrom(2048)
+            received_data += len(data)
+            print(f"Received {len(data)} bytes")
+    except socket.timeout:
+        print("Timeout while receiving data")
+    udp_socket.close()
