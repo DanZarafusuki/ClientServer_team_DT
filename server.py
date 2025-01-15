@@ -10,6 +10,7 @@ import socket
 import threading
 import struct
 import time
+import sys
 
 # For colored output
 import colorama
@@ -161,25 +162,34 @@ def start_server():
 
     print(f"{Fore.BLUE}Server is now listening for clients on TCP:{TCP_PORT} and UDP:{UDP_PORT}.{Style.RESET_ALL}")
 
-    # Handle incoming connections/requests in an infinite loop
-    while True:
-        # Accept new TCP connections in a separate thread
-        threading.Thread(
-            target=accept_tcp_connections,
-            args=(tcp_socket,),
-            daemon=True
-        ).start()
-
-        # Handle incoming UDP requests
-        try:
-            data, client_addr = udp_socket.recvfrom(BUFFER_SIZE)
+    try:
+        # Handle incoming connections/requests in an infinite loop
+        while True:
+            # Accept new TCP connections in a separate thread
             threading.Thread(
-                target=handle_udp_request,
-                args=(data, client_addr, udp_socket),
+                target=accept_tcp_connections,
+                args=(tcp_socket,),
                 daemon=True
             ).start()
-        except Exception as e:
-            print(f"{Fore.RED}Error receiving UDP data: {e}{Style.RESET_ALL}")
+
+            # Handle incoming UDP requests
+            try:
+                data, client_addr = udp_socket.recvfrom(BUFFER_SIZE)
+                threading.Thread(
+                    target=handle_udp_request,
+                    args=(data, client_addr, udp_socket),
+                    daemon=True
+                ).start()
+            except Exception as e:
+                print(f"{Fore.RED}Error receiving UDP data: {e}{Style.RESET_ALL}")
+    except KeyboardInterrupt:
+        print(f"\n{Fore.RED}Server shutting down gracefully...{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED}Unexpected error in server: {e}{Style.RESET_ALL}")
+    finally:
+        tcp_socket.close()
+        udp_socket.close()
+        sys.exit(0)
 
 
 if __name__ == "__main__":

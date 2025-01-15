@@ -11,6 +11,7 @@ import socket
 import threading
 import struct
 import time
+import sys
 
 # For colored output
 import colorama
@@ -43,56 +44,64 @@ def start_client():
 
     print(f"{Fore.GREEN}Client started, listening for offer requests...{Style.RESET_ALL}")
 
-    while True:
-        data, server_address = udp_socket.recvfrom(BUFFER_SIZE)
+    try:
+        while True:
+            data, server_address = udp_socket.recvfrom(BUFFER_SIZE)
 
-        # Validate length of data
-        if len(data) < 9:
-            continue
+            # Validate length of data
+            if len(data) < 9:
+                continue
 
-        # Unpack the server’s broadcast data
-        magic_cookie, message_type, udp_port, tcp_port = struct.unpack('!IBHH', data[:9])
+            # Unpack the server’s broadcast data
+            magic_cookie, message_type, udp_port, tcp_port = struct.unpack('!IBHH', data[:9])
 
-        # Validate the magic cookie and message type
-        if magic_cookie != MAGIC_COOKIE or message_type != OFFER_MESSAGE_TYPE:
-            continue
+            # Validate the magic cookie and message type
+            if magic_cookie != MAGIC_COOKIE or message_type != OFFER_MESSAGE_TYPE:
+                continue
 
-        print(
-            f"{Fore.CYAN}Received offer from {server_address[0]}, "
-            f"attempting to connect...{Style.RESET_ALL}"
-        )
-
-        # Prompt user for parameters
-        file_size = int(input(f"{Fore.YELLOW}Enter file size (in bytes): {Style.RESET_ALL}"))
-        tcp_connections = int(input(f"{Fore.YELLOW}Enter number of TCP connections: {Style.RESET_ALL}"))
-        udp_connections = int(input(f"{Fore.YELLOW}Enter number of UDP connections: {Style.RESET_ALL}"))
-
-        # Create threads for each connection
-        threads = []
-        for i in range(tcp_connections):
-            t = threading.Thread(
-                target=perform_tcp_transfer,
-                args=(server_address[0], tcp_port, file_size, i + 1),
-                daemon=True
+            print(
+                f"{Fore.CYAN}Received offer from {server_address[0]}, "
+                f"attempting to connect...{Style.RESET_ALL}"
             )
-            threads.append(t)
 
-        for i in range(udp_connections):
-            t = threading.Thread(
-                target=perform_udp_transfer,
-                args=(server_address[0], udp_port, file_size, i + 1),
-                daemon=True
-            )
-            threads.append(t)
+            # Prompt user for parameters
+            file_size = int(input(f"{Fore.YELLOW}Enter file size (in bytes): {Style.RESET_ALL}"))
+            tcp_connections = int(input(f"{Fore.YELLOW}Enter number of TCP connections: {Style.RESET_ALL}"))
+            udp_connections = int(input(f"{Fore.YELLOW}Enter number of UDP connections: {Style.RESET_ALL}"))
 
-        # Start and join all threads
-        for thread in threads:
-            thread.start()
+            # Create threads for each connection
+            threads = []
+            for i in range(tcp_connections):
+                t = threading.Thread(
+                    target=perform_tcp_transfer,
+                    args=(server_address[0], tcp_port, file_size, i + 1),
+                    daemon=True
+                )
+                threads.append(t)
 
-        for thread in threads:
-            thread.join()
+            for i in range(udp_connections):
+                t = threading.Thread(
+                    target=perform_udp_transfer,
+                    args=(server_address[0], udp_port, file_size, i + 1),
+                    daemon=True
+                )
+                threads.append(t)
 
-        print(f"{Fore.GREEN}All transfers complete, listening for new offer requests...{Style.RESET_ALL}")
+            # Start and join all threads
+            for thread in threads:
+                thread.start()
+
+            for thread in threads:
+                thread.join()
+
+            print(f"{Fore.GREEN}All transfers complete, listening for new offer requests...{Style.RESET_ALL}")
+    except KeyboardInterrupt:
+        print(f"\n{Fore.RED}Client shutting down...{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED}Unexpected error in client: {e}{Style.RESET_ALL}")
+    finally:
+        udp_socket.close()
+        sys.exit(0)
 
 
 def perform_tcp_transfer(server_ip, server_port, file_size, connection_id):
@@ -167,7 +176,7 @@ def perform_udp_transfer(server_ip, server_port, file_size, connection_id):
         print(
             f"{Fore.MAGENTA}UDP transfer #{connection_id} finished. "
             f"Time: {total_time:.2f}s, Speed: {transfer_speed:.2f} bits/s, "
-            f"Success Rate: {success_rate:.2f}%{Style.RESET_ALL}"
+            f"Success Rate: {success_rate:.2f}%{Style.RESET_ALL}\n"
         )
     except Exception as e:
         print(f"{Fore.RED}Error during UDP transfer #{connection_id}: {e}{Style.RESET_ALL}")
