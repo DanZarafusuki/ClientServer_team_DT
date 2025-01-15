@@ -1,8 +1,19 @@
 # server.py
+"""
+Server Program
+
+The server broadcasts offers on a specified UDP port, waits for clients
+to connect (both TCP and UDP), and sends requested dummy data back.
+"""
+
 import socket
 import threading
 import struct
 import time
+
+# For colored output
+import colorama
+from colorama import Fore, Style
 
 from consts import (
     MAGIC_COOKIE,
@@ -16,88 +27,103 @@ from consts import (
 )
 
 
+def get_active_ip():
+    """
+    Retrieve the active IP address of the machine for the desired network.
+    This method attempts a UDP connection to a public IP (8.8.8.8) to fetch
+    the local IP address that would be used on the internet.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # Google's DNS
+            ip_address = s.getsockname()[0]
+        return ip_address
+    except Exception as e:
+        print(f"{Fore.RED}Error retrieving active IP: {e}{Style.RESET_ALL}")
+        return "127.0.0.1"  # Default to localhost if an error occurs
+
+
 def send_offers():
     """
-    Sends UDP broadcast offers to potential clients.
-
-    Continuously broadcasts an offer message containing the magic cookie,
-    message type, and ports to inform clients about the server's availability.
+    Continuously sends UDP broadcast offers to potential clients.
+    Each offer includes:
+      [MAGIC_COOKIE][OFFER_MESSAGE_TYPE][UDP_PORT][TCP_PORT]
     """
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
+    # Pack the message with magic cookie, message type, and ports
     message = struct.pack('!IBHH', MAGIC_COOKIE, OFFER_MESSAGE_TYPE, UDP_PORT, TCP_PORT)
 
     while True:
         try:
-            # Send broadcast to the entire subnet
+            # Broadcast to the entire subnet
             udp_socket.sendto(message, ('<broadcast>', UDP_PORT))
             time.sleep(BROADCAST_INTERVAL)
         except Exception as e:
-            print(f"[Offer Thread] Error sending offer: {e}")
+            print(f"{Fore.RED}[Offer Thread] Error sending offer: {e}{Style.RESET_ALL}")
 
 
 def handle_tcp_client(conn, addr):
     """
-    Handles a single TCP client connection.
-
-    Receives a file size request from the client, then sends dummy data
-    of the requested size back to the client.
+    Handles a single TCP client connection:
+      1. Reads the file size from the client.
+      2. Sends dummy data of that size back to the client.
     """
     try:
         data = conn.recv(BUFFER_SIZE).decode().strip()
         file_size = int(data)
-        print(f"TCP request received from {addr}, sending {file_size} bytes...")
+        print(f"{Fore.YELLOW}TCP request received from {addr}, requesting {file_size} bytes...{Style.RESET_ALL}")
 
         # Send the requested data
         conn.sendall(b'0' * file_size)
-        print(f"TCP transfer to {addr} complete.")
+
+        print(f"{Fore.GREEN}TCP transfer to {addr} complete.{Style.RESET_ALL}")
     except Exception as e:
-        print(f"Error handling TCP client {addr}: {e}")
+        print(f"{Fore.RED}Error handling TCP client {addr}: {e}{Style.RESET_ALL}")
     finally:
         conn.close()
 
 
 def handle_udp_request(data, client_addr, udp_socket):
     """
-    Handles a single UDP request from a client.
-
-    Validates the client's request and sends payload data in segments
-    based on the requested file size.
+    Handles a single UDP request from a client:
+      1. Unpacks request to validate magic cookie and message type.
+      2. Calculates how many segments are needed for the requested file size.
+      3. Sends segmented payload until file_size worth of data has been broadcast.
     """
     try:
         if len(data) < 13:
             return  # Invalid packet
 
+        # Unpack the UDP request
         magic_cookie, message_type, file_size = struct.unpack('!IBQ', data[:13])
         if magic_cookie != MAGIC_COOKIE or message_type != REQUEST_MESSAGE_TYPE:
             return
 
-        total_segments = file_size // BUFFER_SIZE + (
-            1 if file_size % BUFFER_SIZE != 0 else 0
-        )
+        total_segments = file_size // BUFFER_SIZE + (1 if file_size % BUFFER_SIZE != 0 else 0)
+
         for segment in range(total_segments):
-            # Prepare payload: [MAGIC_COOKIE][PAYLOAD_MESSAGE_TYPE][total_segments][segment_index] + padding
-            payload_header = struct.pack(
-                '!IBQQ', MAGIC_COOKIE, PAYLOAD_MESSAGE_TYPE, total_segments, segment
-            )
+            # Prepare payload:
+            #   [MAGIC_COOKIE][PAYLOAD_MESSAGE_TYPE][total_segments][segment_index] + padding
+            payload_header = struct.pack('!IBQQ', MAGIC_COOKIE, PAYLOAD_MESSAGE_TYPE, total_segments, segment)
+            # Fill the rest of the buffer with dummy data
             payload = payload_header + b'X' * (BUFFER_SIZE - len(payload_header))
             udp_socket.sendto(payload, client_addr)
 
     except Exception as e:
-        print(f"Error handling UDP request: {e}")
+        print(f"{Fore.RED}Error handling UDP request: {e}{Style.RESET_ALL}")
 
 
 def accept_tcp_connections(tcp_socket):
     """
-    Accepts and handles incoming TCP client connections.
-
-    Continuously accepts new client connections and spawns a thread
-    to handle each client.
+    Continuously accepts new TCP client connections and spawns
+    a thread to handle each connection.
     """
     while True:
         conn, addr = tcp_socket.accept()
+        print(f"{Fore.CYAN}New TCP connection from {addr}.{Style.RESET_ALL}")
         threading.Thread(
             target=handle_tcp_client,
             args=(conn, addr),
@@ -107,14 +133,17 @@ def accept_tcp_connections(tcp_socket):
 
 def start_server():
     """
-    Starts the server for both TCP and UDP connections.
-
-    Initializes a UDP socket for broadcasting and receiving requests, and
-    a TCP socket for direct client communication. Spawns threads to
-    handle concurrent client connections and requests.
+    Starts the server:
+      1. Determines the machine's active IP address.
+      2. Spawns a thread to continuously broadcast UDP offers.
+      3. Sets up a TCP socket to listen for client connections on TCP_PORT.
+      4. Sets up a UDP socket to listen for client requests on UDP_PORT.
+      5. Spawns threads to handle incoming connections and requests concurrently.
     """
-    ip_address = socket.gethostbyname(socket.gethostname())
-    print(f"Server started, listening on IP address {ip_address}")
+    colorama.init(autoreset=True)
+
+    ip_address = get_active_ip()
+    print(f"{Fore.GREEN}Server started, listening on IP address {ip_address}{Style.RESET_ALL}")
 
     # Start UDP broadcast thread
     threading.Thread(target=send_offers, daemon=True).start()
@@ -130,10 +159,11 @@ def start_server():
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     udp_socket.bind(('', UDP_PORT))
 
-    print("Server is listening for clients...")
+    print(f"{Fore.BLUE}Server is now listening for clients on TCP:{TCP_PORT} and UDP:{UDP_PORT}.{Style.RESET_ALL}")
 
+    # Handle incoming connections/requests in an infinite loop
     while True:
-        # Accept new TCP connections
+        # Accept new TCP connections in a separate thread
         threading.Thread(
             target=accept_tcp_connections,
             args=(tcp_socket,),
@@ -149,7 +179,7 @@ def start_server():
                 daemon=True
             ).start()
         except Exception as e:
-            print(f"Error receiving UDP data: {e}")
+            print(f"{Fore.RED}Error receiving UDP data: {e}{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":
