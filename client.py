@@ -30,6 +30,7 @@ file_size = None
 tcp_connections = None
 udp_connections = None
 
+
 def prompt_settings():
     """Prompts the user for file size and number of connections if not set."""
     global file_size, tcp_connections, udp_connections
@@ -40,6 +41,7 @@ def prompt_settings():
         tcp_connections = int(input(f"{Fore.YELLOW}Enter number of TCP connections: {Style.RESET_ALL}"))
     if udp_connections is None:
         udp_connections = int(input(f"{Fore.YELLOW}Enter number of UDP connections: {Style.RESET_ALL}"))
+
 
 def start_client():
     """
@@ -115,6 +117,7 @@ def start_client():
         udp_socket.close()
         sys.exit(0)
 
+
 def perform_tcp_transfer(server_ip, server_port, file_size, connection_id):
     """
     Performs a TCP transfer:
@@ -148,6 +151,7 @@ def perform_tcp_transfer(server_ip, server_port, file_size, connection_id):
             )
     except Exception as e:
         print(f"{Fore.RED}Error during TCP transfer #{connection_id}: {e}{Style.RESET_ALL}")
+
 
 def perform_udp_transfer(server_ip, server_port, file_size, connection_id):
     """
@@ -190,6 +194,7 @@ def perform_udp_transfer(server_ip, server_port, file_size, connection_id):
         )
     except Exception as e:
         print(f"{Fore.RED}Error during UDP transfer #{connection_id}: {e}{Style.RESET_ALL}")
+
 
 if __name__ == "__main__":
     start_client()
