@@ -1,21 +1,24 @@
-# server.py
 import socket
 import threading
 import struct
 import time
 
 # Constants
-MAGIC_COOKIE = 0xabcddcba
-OFFER_MESSAGE_TYPE = 0x2
-REQUEST_MESSAGE_TYPE = 0x3
-PAYLOAD_MESSAGE_TYPE = 0x4
-UDP_PORT = 13117
-TCP_PORT = 20000
-BUFFER_SIZE = 1024
-
+MAGIC_COOKIE = 0xabcddcba  # Unique identifier for protocol validation
+OFFER_MESSAGE_TYPE = 0x2  # Message type for broadcast offers
+REQUEST_MESSAGE_TYPE = 0x3  # Message type for client requests
+PAYLOAD_MESSAGE_TYPE = 0x4  # Message type for payload data
+UDP_PORT = 13117  # Port for UDP communication
+TCP_PORT = 20000  # Port for TCP communication
+BUFFER_SIZE = 1024  # Standard size for data transmission buffers
 
 def send_offers():
-    """Sends UDP broadcast offers to clients."""
+    """
+    Sends UDP broadcast offers to potential clients.
+
+    Continuously broadcasts an offer message containing the magic cookie, 
+    message type, and ports to inform clients about the server's availability.
+    """
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow port reuse
@@ -26,9 +29,17 @@ def send_offers():
         udp_socket.sendto(message, ('<broadcast>', UDP_PORT))
         time.sleep(1)
 
-
 def handle_tcp_client(conn, addr):
-    """Handles a single TCP client connection."""
+    """
+    Handles a single TCP client connection.
+
+    Args:
+        conn (socket): The socket object connected to the client.
+        addr (tuple): The address of the client (IP, port).
+
+    Receives a file size request from the client, then sends dummy data 
+    of the requested size back to the client.
+    """
     try:
         data = conn.recv(BUFFER_SIZE).decode().strip()
         file_size = int(data)
@@ -42,9 +53,18 @@ def handle_tcp_client(conn, addr):
     finally:
         conn.close()
 
-
 def handle_udp_request(data, client_addr, udp_socket):
-    """Handles a single UDP request from a client."""
+    """
+    Handles a single UDP request from a client.
+
+    Args:
+        data (bytes): The data received from the client.
+        client_addr (tuple): The address of the client (IP, port).
+        udp_socket (socket): The UDP socket used for communication.
+
+    Validates the client's request and sends payload data in segments 
+    based on the requested file size.
+    """
     try:
         if len(data) < 13:
             return  # Invalid packet
@@ -61,9 +81,14 @@ def handle_udp_request(data, client_addr, udp_socket):
     except Exception as e:
         print(f"Error handling UDP request: {e}")
 
-
 def start_server():
-    """Starts the server for both TCP and UDP connections."""
+    """
+    Starts the server for both TCP and UDP connections.
+
+    Initializes a UDP socket for broadcasting and receiving requests and 
+    a TCP socket for direct client communication. Spawns threads to 
+    handle concurrent client connections and requests.
+    """
     ip_address = socket.gethostbyname(socket.gethostname())
     print(f"Server started, listening on IP address {ip_address}")
 
@@ -94,13 +119,19 @@ def start_server():
         except Exception as e:
             print(f"Error receiving UDP data: {e}")
 
-
 def accept_tcp_connections(tcp_socket):
-    """Accepts and handles TCP client connections."""
+    """
+    Accepts and handles incoming TCP client connections.
+
+    Args:
+        tcp_socket (socket): The server's TCP socket for listening to connections.
+
+    Continuously accepts new client connections and spawns a thread 
+    to handle each client.
+    """
     while True:
         conn, addr = tcp_socket.accept()
         threading.Thread(target=handle_tcp_client, args=(conn, addr), daemon=True).start()
-
 
 if __name__ == "__main__":
     start_server()
