@@ -69,7 +69,7 @@ def start_client():
             tcp_connections = int(input(f"{Fore.YELLOW}Enter number of TCP connections: {Style.RESET_ALL}"))
             udp_connections = int(input(f"{Fore.YELLOW}Enter number of UDP connections: {Style.RESET_ALL}"))
 
-            # Create threads for each connection
+            # Create threads for each TCP connection
             threads = []
             for i in range(tcp_connections):
                 t = threading.Thread(
@@ -79,6 +79,7 @@ def start_client():
                 )
                 threads.append(t)
 
+            # Create threads for each UDP connection
             for i in range(udp_connections):
                 t = threading.Thread(
                     target=perform_udp_transfer,
