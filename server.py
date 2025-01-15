@@ -12,6 +12,22 @@ UDP_PORT = 13117  # Port for UDP communication
 TCP_PORT = 20000  # Port for TCP communication
 BUFFER_SIZE = 1024  # Standard size for data transmission buffers
 
+
+def get_active_ip():
+    """
+    Retrieve the active IP address of the machine for the desired network.
+    This method sends a dummy UDP packet to a public IP (does not connect).
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # Google's DNS
+            ip_address = s.getsockname()[0]
+        return ip_address
+    except Exception as e:
+        print(f"Error retrieving active IP: {e}")
+        return "127.0.0.1"  # Default to localhost if an error occurs
+
+
 def send_offers():
     """
     Sends UDP broadcast offers to potential clients.
@@ -89,7 +105,7 @@ def start_server():
     a TCP socket for direct client communication. Spawns threads to 
     handle concurrent client connections and requests.
     """
-    ip_address = socket.gethostbyname(socket.gethostname())
+    ip_address = get_active_ip()
     print(f"Server started, listening on IP address {ip_address}")
 
     # Start UDP broadcast thread
