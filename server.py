@@ -1,61 +1,106 @@
-MAGIC_COOKIE = 0xabcddcba  # Identifier for protocol
-MESSAGE_TYPE_OFFER = 0x2  # Message type for offer
-MESSAGE_TYPE_REQUEST = 0x3  # Message type for request
-MESSAGE_TYPE_PAYLOAD = 0x4  # Message type for payload
-PACKET_SIZE = 1024  # Standard packet size for communication
+# server.py
+import socket
+import threading
+import struct
+import time
+
+# Constants
+MAGIC_COOKIE = 0xabcddcba
+OFFER_MESSAGE_TYPE = 0x2
+REQUEST_MESSAGE_TYPE = 0x3
+PAYLOAD_MESSAGE_TYPE = 0x4
+UDP_PORT = 13117
+TCP_PORT = 20000
+BUFFER_SIZE = 1024
 
 
-def create_offer_message(udp_port, tcp_port):
-    """
-    Prepares an offer message to initiate communication.
+def send_offers():
+    """Sends UDP broadcast offers to clients."""
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow port reuse
 
-    Args:
-        udp_port (int): The UDP port to include in the offer message.
-        tcp_port (int): The TCP port to include in the offer message.
+    message = struct.pack('!IBHH', MAGIC_COOKIE, OFFER_MESSAGE_TYPE, UDP_PORT, TCP_PORT)
 
-    Returns:
-        bytes: Encoded offer message.
-    """
-    pass  # Logic to create and return the offer message
-
-
-def handle_udp_request(server_socket, client_addr, file_size):
-    """
-    Handles incoming UDP requests from clients.
-
-    Args:
-        server_socket (socket): The server's UDP socket.
-        client_addr (tuple): Client's address (IP, port).
-        file_size (int): Size of the file being requested.
-
-    Returns:
-        None
-    """
-    pass  # Logic to process UDP requests
+    while True:
+        udp_socket.sendto(message, ('<broadcast>', UDP_PORT))
+        time.sleep(1)
 
 
-def handle_client(client_socket):
-    """
-    Manages client interactions over a TCP connection.
+def handle_tcp_client(conn, addr):
+    """Handles a single TCP client connection."""
+    try:
+        data = conn.recv(BUFFER_SIZE).decode().strip()
+        file_size = int(data)
+        print(f"TCP request received from {addr}, sending {file_size} bytes.")
 
-    Args:
-        client_socket (socket): The socket connected to the client.
+        # Send the requested data
+        conn.sendall(b'0' * file_size)
+        print(f"TCP transfer to {addr} complete.")
+    except Exception as e:
+        print(f"Error handling TCP client {addr}: {e}")
+    finally:
+        conn.close()
 
-    Returns:
-        None
-    """
-    pass  # Logic to manage TCP client communication
+
+def handle_udp_request(data, client_addr, udp_socket):
+    """Handles a single UDP request from a client."""
+    try:
+        if len(data) < 13:
+            return  # Invalid packet
+
+        magic_cookie, message_type, file_size = struct.unpack('!IBQ', data[:13])
+        if magic_cookie != MAGIC_COOKIE or message_type != REQUEST_MESSAGE_TYPE:
+            return
+
+        total_segments = file_size // BUFFER_SIZE + (1 if file_size % BUFFER_SIZE != 0 else 0)
+        for segment in range(total_segments):
+            payload = struct.pack('!IBQQ', MAGIC_COOKIE, PAYLOAD_MESSAGE_TYPE, total_segments, segment)
+            payload += b'X' * (BUFFER_SIZE - len(payload))
+            udp_socket.sendto(payload, client_addr)
+    except Exception as e:
+        print(f"Error handling UDP request: {e}")
 
 
-def server():
-    """
-    Initializes the server to handle client connections and requests.
+def start_server():
+    """Starts the server for both TCP and UDP connections."""
+    ip_address = socket.gethostbyname(socket.gethostname())
+    print(f"Server started, listening on IP address {ip_address}")
 
-    Returns:
-        None
-    """
-    pass  # Server initialization and main loop logic
+    # Start UDP broadcast thread
+    threading.Thread(target=send_offers, daemon=True).start()
+
+    # Setup TCP server
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow port reuse for TCP
+    tcp_socket.bind(('', TCP_PORT))
+    tcp_socket.listen(5)
+
+    # Setup UDP server
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow port reuse for UDP
+    udp_socket.bind(('', UDP_PORT))
+
+    print("Server is listening for clients...")
+
+    while True:
+        # Handle TCP connections
+        threading.Thread(target=accept_tcp_connections, args=(tcp_socket,), daemon=True).start()
+
+        # Handle UDP requests
+        try:
+            data, client_addr = udp_socket.recvfrom(BUFFER_SIZE)
+            threading.Thread(target=handle_udp_request, args=(data, client_addr, udp_socket), daemon=True).start()
+        except Exception as e:
+            print(f"Error receiving UDP data: {e}")
+
+
+def accept_tcp_connections(tcp_socket):
+    """Accepts and handles TCP client connections."""
+    while True:
+        conn, addr = tcp_socket.accept()
+        threading.Thread(target=handle_tcp_client, args=(conn, addr), daemon=True).start()
 
 
 if __name__ == "__main__":
-    print("I am server")  # Placeholder for main server execution
+    start_server()
