@@ -18,7 +18,10 @@ def listen_for_offers(udp_socket):
 
 
 def handle_tcp_connection(server_ip, tcp_port):
+    print(f"Connecting to {server_ip}:{tcp_port}")
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp_socket.connect((server_ip, tcp_port))
-    tcp_socket.sendall(b"Hello Server")  # Placeholder for file size
+    print("Sending test message")
+    tcp_socket.sendall(b"Test Message")
     tcp_socket.close()
+    print("Connection closed")
