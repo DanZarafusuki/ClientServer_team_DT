@@ -4,14 +4,17 @@ import threading
 import struct
 import time
 
-# Constants
-MAGIC_COOKIE = 0xabcddcba  # Unique identifier for protocol validation
-OFFER_MESSAGE_TYPE = 0x2  # Message type for broadcast offers
-REQUEST_MESSAGE_TYPE = 0x3  # Message type for client requests
-PAYLOAD_MESSAGE_TYPE = 0x4  # Message type for payload data
-UDP_PORT = 13117  # Port for UDP communication
-TCP_PORT = 20000  # Port for TCP communication
-BUFFER_SIZE = 1024  # Standard size for data transmission buffers
+
+from consts import (
+    MAGIC_COOKIE,
+    OFFER_MESSAGE_TYPE,
+    REQUEST_MESSAGE_TYPE,
+    PAYLOAD_MESSAGE_TYPE,
+    UDP_PORT,
+    TCP_PORT,
+    BUFFER_SIZE,
+    BROADCAST_INTERVAL,
+)
 
 
 def send_offers():
