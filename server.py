@@ -71,21 +71,33 @@ def handle_tcp_client(conn, addr):
     """
     Handles a single TCP client connection:
       1. Reads the file size from the client.
-      2. Sends dummy data of that size back to the client.
+      2. Sends dummy data of that size back to the client in chunks.
     """
     try:
+        # Receive the file size from the client
         data = conn.recv(BUFFER_SIZE).decode().strip()
         file_size = int(data)
         print(f"{Fore.YELLOW}TCP request received from {addr}, requesting {file_size} bytes...{Style.RESET_ALL}")
 
-        # Send the requested data
-        conn.sendall(b'0' * file_size)
+        # Send the requested data in chunks
+        chunk_size = 4096  # Adjust chunk size if needed
+        bytes_sent = 0
+
+        while bytes_sent < file_size:
+            # Calculate the size of the next chunk
+            remaining = file_size - bytes_sent
+            current_chunk_size = min(chunk_size, remaining)
+
+            # Send the current chunk
+            conn.sendall(b'0' * current_chunk_size)
+            bytes_sent += current_chunk_size
 
         print(f"{Fore.GREEN}TCP transfer to {addr} complete.{Style.RESET_ALL}")
     except Exception as e:
         print(f"{Fore.RED}Error handling TCP client {addr}: {e}{Style.RESET_ALL}")
     finally:
         conn.close()
+
 
 
 def handle_udp_request(data, client_addr, udp_socket):
