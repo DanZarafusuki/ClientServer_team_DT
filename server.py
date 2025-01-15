@@ -31,8 +31,12 @@ def send_offers():
     message = struct.pack('!IBHH', MAGIC_COOKIE, OFFER_MESSAGE_TYPE, UDP_PORT, TCP_PORT)
 
     while True:
-        udp_socket.sendto(message, ('<broadcast>', UDP_PORT))
-        time.sleep(1)
+        try:
+            # Send broadcast to entire subnet
+            udp_socket.sendto(message, ('<broadcast>', UDP_PORT))
+            time.sleep(BROADCAST_INTERVAL)
+        except Exception as e:
+            print(f"[Offer Thread] Error sending offer: {e}")
 
 
 def handle_tcp_client(conn, addr):
