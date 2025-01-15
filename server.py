@@ -12,6 +12,7 @@ UDP_PORT = 13117  # Port for UDP communication
 TCP_PORT = 20000  # Port for TCP communication
 BUFFER_SIZE = 1024  # Standard size for data transmission buffers
 
+
 def send_offers():
     """
     Sends UDP broadcast offers to potential clients.
@@ -28,6 +29,7 @@ def send_offers():
     while True:
         udp_socket.sendto(message, ('<broadcast>', UDP_PORT))
         time.sleep(1)
+
 
 def handle_tcp_client(conn, addr):
     """
@@ -52,6 +54,7 @@ def handle_tcp_client(conn, addr):
         print(f"Error handling TCP client {addr}: {e}")
     finally:
         conn.close()
+
 
 def handle_udp_request(data, client_addr, udp_socket):
     """
@@ -80,6 +83,7 @@ def handle_udp_request(data, client_addr, udp_socket):
             udp_socket.sendto(payload, client_addr)
     except Exception as e:
         print(f"Error handling UDP request: {e}")
+
 
 def start_server():
     """
@@ -119,6 +123,7 @@ def start_server():
         except Exception as e:
             print(f"Error receiving UDP data: {e}")
 
+
 def accept_tcp_connections(tcp_socket):
     """
     Accepts and handles incoming TCP client connections.
@@ -132,6 +137,7 @@ def accept_tcp_connections(tcp_socket):
     while True:
         conn, addr = tcp_socket.accept()
         threading.Thread(target=handle_tcp_client, args=(conn, addr), daemon=True).start()
+
 
 if __name__ == "__main__":
     start_server()
