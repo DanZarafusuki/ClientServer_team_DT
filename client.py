@@ -3,8 +3,7 @@
 Client Program
 
 The client listens for broadcast offers from the server on a specified UDP port.
-Upon receiving an offer, the client prompts the user for file size and number
-of connections (TCP and UDP), then starts data transfers using threads.
+Once the file size and number of connections (TCP and UDP) are set, the client reuses them for subsequent transfers.
 """
 
 import socket
@@ -26,15 +25,28 @@ BUFFER_SIZE = 1024  # Size of the buffer for data transfer
 
 BROADCAST_INTERVAL = 1  # Interval (seconds) for sending UDP broadcast
 
+# Global settings
+file_size = None
+tcp_connections = None
+udp_connections = None
+
+def prompt_settings():
+    """Prompts the user for file size and number of connections if not set."""
+    global file_size, tcp_connections, udp_connections
+
+    if file_size is None:
+        file_size = int(input(f"{Fore.YELLOW}Enter file size (in bytes): {Style.RESET_ALL}"))
+    if tcp_connections is None:
+        tcp_connections = int(input(f"{Fore.YELLOW}Enter number of TCP connections: {Style.RESET_ALL}"))
+    if udp_connections is None:
+        udp_connections = int(input(f"{Fore.YELLOW}Enter number of UDP connections: {Style.RESET_ALL}"))
 
 def start_client():
     """
     Starts the client:
       1. Creates and binds a UDP socket to listen for server offers on UDP_PORT.
-      2. When an offer is received, prompts user for file size and number
-         of TCP/UDP connections.
-      3. Spawns threads for each connection type (TCP and/or UDP) to transfer data.
-      4. Awaits new server offers after transfers complete.
+      2. When an offer is received, starts data transfers using the predefined settings.
+      3. Awaits new server offers after transfers complete.
     """
     # Initialize colorama for colored console output
     colorama.init(autoreset=True)
@@ -65,10 +77,8 @@ def start_client():
                 f"attempting to connect...{Style.RESET_ALL}"
             )
 
-            # Prompt user for parameters
-            file_size = int(input(f"{Fore.YELLOW}Enter file size (in bytes): {Style.RESET_ALL}"))
-            tcp_connections = int(input(f"{Fore.YELLOW}Enter number of TCP connections: {Style.RESET_ALL}"))
-            udp_connections = int(input(f"{Fore.YELLOW}Enter number of UDP connections: {Style.RESET_ALL}"))
+            # Ensure settings are configured
+            prompt_settings()
 
             # Create threads for each TCP connection
             threads = []
@@ -105,7 +115,6 @@ def start_client():
         udp_socket.close()
         sys.exit(0)
 
-
 def perform_tcp_transfer(server_ip, server_port, file_size, connection_id):
     """
     Performs a TCP transfer:
@@ -139,7 +148,6 @@ def perform_tcp_transfer(server_ip, server_port, file_size, connection_id):
             )
     except Exception as e:
         print(f"{Fore.RED}Error during TCP transfer #{connection_id}: {e}{Style.RESET_ALL}")
-
 
 def perform_udp_transfer(server_ip, server_port, file_size, connection_id):
     """
@@ -182,7 +190,6 @@ def perform_udp_transfer(server_ip, server_port, file_size, connection_id):
         )
     except Exception as e:
         print(f"{Fore.RED}Error during UDP transfer #{connection_id}: {e}{Style.RESET_ALL}")
-
 
 if __name__ == "__main__":
     start_client()
