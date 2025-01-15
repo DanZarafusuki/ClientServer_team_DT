@@ -16,16 +16,17 @@ import sys
 import colorama
 from colorama import Fore, Style
 
-from consts import (
-    MAGIC_COOKIE,
-    OFFER_MESSAGE_TYPE,
-    REQUEST_MESSAGE_TYPE,
-    PAYLOAD_MESSAGE_TYPE,
-    UDP_PORT,
-    TCP_PORT,
-    BUFFER_SIZE,
-    BROADCAST_INTERVAL,
-)
+# consts
+MAGIC_COOKIE = 0xabcddcba  # Unique identifier for the magic cookie
+OFFER_MESSAGE_TYPE = 0x2  # Indicates a broadcast message offering service
+REQUEST_MESSAGE_TYPE = 0x3  # Indicates a client request for file transfer
+PAYLOAD_MESSAGE_TYPE = 0x4  # Indicates payload data in UDP transfer
+
+UDP_PORT = 13117  # Default UDP port for broadcasting and receiving
+TCP_PORT = 20000  # Default TCP port for connections
+BUFFER_SIZE = 1024  # Size of the buffer for data transfer
+
+BROADCAST_INTERVAL = 1  # Interval (seconds) for sending UDP broadcast
 
 
 def get_active_ip():
@@ -153,7 +154,7 @@ def start_server():
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     tcp_socket.bind(('', TCP_PORT))
-    tcp_socket.listen(5)
+    tcp_socket.listen(10)
 
     # Setup UDP server
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

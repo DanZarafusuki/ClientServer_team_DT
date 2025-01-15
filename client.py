@@ -17,13 +17,14 @@ import sys
 import colorama
 from colorama import Fore, Style
 
-from consts import (
-    MAGIC_COOKIE,
-    OFFER_MESSAGE_TYPE,
-    REQUEST_MESSAGE_TYPE,
-    UDP_PORT,
-    BUFFER_SIZE,
-)
+# consts
+MAGIC_COOKIE = 0xabcddcba  # Unique identifier for the magic cookie
+OFFER_MESSAGE_TYPE = 0x2  # Indicates a broadcast message offering service
+REQUEST_MESSAGE_TYPE = 0x3  # Indicates a client request for file transfer
+UDP_PORT = 13117  # Default UDP port for broadcasting and receiving
+BUFFER_SIZE = 1024  # Size of the buffer for data transfer
+
+BROADCAST_INTERVAL = 1  # Interval (seconds) for sending UDP broadcast
 
 
 def start_client():
@@ -134,7 +135,7 @@ def perform_tcp_transfer(server_ip, server_port, file_size, connection_id):
 
             print(
                 f"{Fore.MAGENTA}TCP transfer #{connection_id} finished. "
-                f"Time: {total_time:.2f}s, Speed: {transfer_speed:.2f} bits/s{Style.RESET_ALL}"
+                f"Time: {total_time:.2f}s, Speed: {transfer_speed:.2f} bits/s{Style.RESET_ALL}\n", end=''
             )
     except Exception as e:
         print(f"{Fore.RED}Error during TCP transfer #{connection_id}: {e}{Style.RESET_ALL}")
@@ -177,7 +178,7 @@ def perform_udp_transfer(server_ip, server_port, file_size, connection_id):
         print(
             f"{Fore.MAGENTA}UDP transfer #{connection_id} finished. "
             f"Time: {total_time:.2f}s, Speed: {transfer_speed:.2f} bits/s, "
-            f"Success Rate: {success_rate:.2f}%{Style.RESET_ALL}\n"
+            f"Success Rate: {success_rate:.2f}%{Style.RESET_ALL}\n", end=''
         )
     except Exception as e:
         print(f"{Fore.RED}Error during UDP transfer #{connection_id}: {e}{Style.RESET_ALL}")
